@@ -21,11 +21,17 @@ cdef class POMDP:
 cdef class Action:
     cdef public str name
 
+cdef class MacroAction:
+    cdef pass
+
 cdef class State:
     pass
 
 cdef class Observation:
     pass
+
+cdef class MacroObservation:
+    cdef pass
 
 cdef class Agent:
     cdef GenerativeDistribution _init_belief

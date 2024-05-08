@@ -295,6 +295,24 @@ cdef class Action:
     def __ne__(self, other):
         return not self.__eq__(other)
 
+cdef class MacroAction(Action):
+    """
+    A macro action is an abstracted action defined as a sequence
+    of primitive actions.
+    """
+    @property
+    def action_sequence(self):
+        """Returns the sequence of primitive actions characterizing
+        the macro_action.
+        """
+        raise NotImplementedError
+    def __eq__(self, other):
+        raise NotImplementedError
+    def __hash__(self):
+        raise NotImplementedError
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
 cdef class State:
     """
     The State class. State must be `hashable`.
@@ -314,8 +332,23 @@ cdef class Observation:
         raise NotImplementedError
     def __hash__(self):
         raise NotImplementedError
-    def __ne__(self, other):
-        return not self.__eq__(other)
+
+cdef class MacroObservation(Observation):
+    """
+    A macro observation is an abstracted observation defined as a
+    sequence of primitive observations.
+    """
+    @property
+    def observation_sequence(self):
+        """Returns the sequence of primitive observations characterizing
+        the macro_observation.
+        """
+        raise NotImplementedError
+
+    def __eq__(self, other):
+        raise NotImplementedError
+    def __hash__(self):
+        raise NotImplementedError
 
 cdef class Agent:
     """ An Agent operates in an environment by taking actions, receiving
@@ -711,6 +744,30 @@ cpdef sample_explict_models(TransitionModel T, ObservationModel O, RewardModel R
             nsteps += 1
         # sample observation at the end, where action is the last action.
         # (doesn't quite make sense to just use option as the action at this point.)
+    elif isinstance(action, MacroAction):
+        macro_action = action
+        observation_sequence = []
+        macro_reward = 0.0
+
+        if O is not None:
+            for i, a in enumerate(macro_action.action_sequence):
+                next_state = T.sample(state, action)
+                observation = O.sample(next_state, action)
+                observation_sequence.append(observation)
+                reward = R.sample(state, action, next_state)
+                macro_reward += discount_factor ** i * reward
+                state = next_state
+                nsteps += 1
+            return next_state, MacroObservation(observation_sequence), macro_reward, nsteps
+        else:
+            for i, a in enumerate(macro_action.action_sequence):
+                next_state = T.sample(state, action)
+                reward = R.sample(state, action, next_state)
+                macro_reward += discount_factor ** i * reward
+                state = next_state
+                nsteps += 1
+            return next_state, macro_reward, nsteps
+
     else:
         next_state = T.sample(state, action)
         reward = R.sample(state, action, next_state)
